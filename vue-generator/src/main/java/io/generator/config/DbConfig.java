@@ -22,7 +22,7 @@ import io.generator.dao.SQLServerGeneratorDao;
 import io.generator.utils.RRException;
 
 /**
- * 数据库配置（测试11111）
+ * 数据库配置
  */
 @Configuration
 public class DbConfig {
