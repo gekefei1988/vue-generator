@@ -1,0 +1,201 @@
+<template>
+	<Modal
+		title="${functionName}维护"
+		:value="show"
+		width="900"
+		@on-cancel="handleCancel(false)"
+		:mask-closable="false">
+		<Form ref="entityForm" :model="entityForm" :rules="ruleValidate" :label-width="120" class="form-default">
+			<Row class="form-panel">
+#foreach($column in $maintainList)
+#if($velocityCount%2==1)
+				<Row>
+#end
+#if(${column.humpColumnName} == 'companyId')
+					<FormColItem label="归属企业" prop='companyId' v-if="this.$store.state.user.isSuperAdmin">
+						<OrgCompanySelect v-if="isEdit" v-model="entityForm.companyId"></OrgCompanySelect>
+						<span v-else class="font-weight">{{entityForm.companyName}}</span>
+					</FormColItem>
+#elseif(${column.isComboBox} == true)
+					<FormColItem label="${column.title}" prop='${column.humpColumnName}'>
+						<DictSelect v-if="isEdit" v-model="entityForm.${column.humpColumnName}" type=""></DictSelect>
+#set($column.humpColumnName = $column.humpColumnName.replace('Id', ''))
+						<span v-else class="font-weight">{{entityForm.${column.humpColumnName}Name}}</span>
+					</FormColItem>
+#elseif(${column.isPop} == true)
+					<FormColItem label="${column.title}" prop='${column.humpColumnName}'>
+						<SingleSelect v-if="isEdit" v-model="entityForm.${column.humpColumnName}"></SingleSelect>
+						<span v-else class="font-weight">{{entityForm.${column.humpColumnName}}}</span>
+					</FormColItem>
+#elseif(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+					<FormColItem label="${column.title}" prop='${column.humpColumnName}'>
+						<DatePicker v-if="isEdit" type="date" v-model="entityForm.${column.humpColumnName}" style="width:100%;" transfer clearable placeholder="请选择${column.title}..."></DatePicker>
+							<span v-else class="font-weight">{{entityForm.${column.humpColumnName}}}</span>
+					</FormColItem>
+#elseif(${column.numericType} == '1' || ${column.numericType} == '2')
+					<FormColItem label="${column.title}" prop='${column.humpColumnName}'>
+						<Input v-if="isEdit" number v-model="entityForm.${column.humpColumnName}" placeholder="请输入${column.title}..."></Input>
+						<span v-else class="font-weight">{{entityForm.${column.humpColumnName}}}</span>
+					</FormColItem>
+#else
+					<FormColItem label="${column.title}" prop='${column.humpColumnName}'>
+						<Input v-if="isEdit" v-model="entityForm.${column.humpColumnName}" placeholder="请输入${column.title}..."></Input>
+						<span v-else class="font-weight">{{entityForm.${column.humpColumnName}}}</span>
+					</FormColItem>
+#end
+#if($velocityCount%2==0 || $velocityCount==$maintainList.size())
+				</Row>
+#end
+#end
+			</Row>
+		</Form>
+		<div slot="footer">
+			<Button @click="handleCancel(false)" type="default">取消</Button>
+			<Button v-if="isEdit" @click="handleSave" :loading="buttonLoading" type="primary">确定</Button>
+		</div>
+	</Modal>
+</template>
+<script>
+import OrgCompanySelect from '@/view/sys-manage/tenant/plugin/tenant-select'
+import DictSelect from '_c/sys/dict/comp/dict-select'
+import {save,onlyOne,get} from './api'
+import {validateNumber,validateInteger} from '@/libs/validate'
+export default {
+	name: '${moduleName}_${tableSimpleName}_details',
+	components: {
+		OrgCompanySelect,
+		DictSelect,
+	},
+	props: {
+		show: {
+			type: Boolean,
+			default: () => false
+		},
+		isEdit: {
+			type: Boolean,
+			default: () => true
+		},
+		entity: {
+			type: Object,
+			default: () => {
+				return {}
+			}
+		}
+	},
+	model: {
+		prop: 'show',
+		event: 'returnShow'
+	},
+	data () {
+		return {
+			buttonLoading: false,
+			entityForm: {},
+			entityModel: {}
+		}
+	},
+	computed: {
+		ruleValidate () {
+			return {
+#foreach($column in $maintainList)
+#if(${column.isNotNull} == true)
+#if(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+				${column.humpColumnName}: [
+					{ required: true,type:'date', message: '请输入${column.title}...', trigger: 'blur' }
+				], 
+#elseif(${column.numericType} == '1')
+				${column.humpColumnName}: [
+					{ required: true, message: '请输入${column.title}...', trigger: 'blur' },
+					{ validator: validateInteger, trigger: 'blur' }
+				],
+#elseif(${column.numericType} == '2')
+				${column.humpColumnName}: [
+					{ required: true, message: '请输入${column.title}...', trigger: 'blur' },
+					{ validator: validateNumber, trigger: 'blur' }
+				],
+#else
+				${column.humpColumnName}: [
+					{ required: true, message: '请输入${column.title}...', trigger: 'blur' }
+				],
+#end
+#end
+#end
+			}
+		}
+	},
+	methods: {
+		// 验证
+		checkOnlyOne (rule, value, callback, source, options) {
+			const errors = []
+			if(this.$store.state.user.isSuperAdmin){
+				if(!this.formItem.companyId){
+					errors.push("请选择所属企业")
+				}
+			}
+			if(errors.length > 0){
+				callback(errors)
+				return false
+			}
+			let params = {
+				propName: rule.field,
+				propValue: value,
+				id: this.formItem.id,
+				companyId:this.formItem.companyId,
+			}
+			onlyOne(params).then(res => {
+				if (!res.data.success) {
+					errors.push(res.data.msg)
+				}
+				callback(errors)
+			})
+		},
+		handleCancel (isSearch) {
+			isSearch = isSearch || false
+			this.$emit('returnShow', false)
+			this.$emit('callback', isSearch)
+			setTimeout(() => {
+				this.entityForm = Object.assign({}, this.entityModel)
+				this.$refs['entityForm'].resetFields()
+			}, 200)
+		},
+		handleSave () {
+			this.$refs['entityForm']
+				.validate((valid) => {
+				// 验证通过, 保存
+				if (valid) {
+					this.buttonLoading = true
+					save(this.entityForm).then(res => {
+						if (res.data.success) {
+							this.$Message
+								.success(res.data.msg)
+							this.handleCancel(true)
+						} else {
+							this.$Message
+								.error(res.data.msg)
+						}
+						this.buttonLoading = false
+					})
+				}
+			})
+		},
+	},
+	mounted () {
+		// 模型
+		get().then(res => {
+			this.entityModel = res.data
+			this.entityForm = Object.assign({}, this.entityModel)
+		})
+	},
+	watch: {
+		entity (newVal, oldVal) {
+			if (newVal && newVal.id) {
+				this.entityForm = newVal
+			} else {
+				this.entityForm = Object.assign({}, this.entityModel)
+			}
+			this.$refs['entityForm'].resetFields()
+		}
+	}
+}
+</script>
+<style lang="less" scoped>
+</style>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="io.generator.dao.StructureDao">
+	 <select id="structureSel" parameterType="String" resultType="io.generator.entity.ColumnsStructure">
+    	SELECT
+		    COLUMN_NAME,
+		    COLUMN_COMMENT,
+		    COLUMN_TYPE,
+		    DATA_TYPE,
+		    IS_NULLABLE,
+		    COLUMN_DEFAULT,
+		    CHARACTER_MAXIMUM_LENGTH
+		FROM
+		    information_schema.columns
+		WHERE
+		    table_name = #{tableName}
+		AND table_schema = #{tableSchema}
+    </select>
+</mapper>

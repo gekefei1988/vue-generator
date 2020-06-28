@@ -1,0 +1,252 @@
+<template>
+	<div>
+		<Card>
+			<SearchGroup @search="handleSearch" @clear="handleClear">
+#foreach($column in $queryConditionList)
+#if(${column.humpColumnName} == 'companyId')
+				<SearchGroupItem label="${column.title}" v-if="this.$store.state.user.isSuperAdmin">
+					<OrgCompanySelect v-model="searchParams.companyId" :isEdit="true"></OrgCompanySelect>
+#elseif(${column.isComboBox} == true)
+				<SearchGroupItem label="${column.title}">
+					<DictSelect v-model="searchParams.${column.humpColumnName}" type="" class="search-input"></DictSelect>
+#elseif(${column.isPop} == true)
+				<SearchGroupItem label="${column.title}">
+					<SingleSelect v-model="searchParams.${column.humpColumnName}"></SingleSelect>
+#elseif(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+				<SearchGroupItem label="${column.title}">
+					<DatePicker type="date" v-model="searchParams.${column.humpColumnName}Start" class="search-input" format="yyyy-MM-dd"  placeholder="${column.title}起"></DatePicker>
+				</SearchGroupItem>
+				<SearchGroupItem label="到">
+					<DatePicker type="date" v-model="searchParams.${column.humpColumnName}End" class="search-input" format="yyyy-MM-dd"  placeholder="${column.title}至"></DatePicker>
+#else
+				<SearchGroupItem label="${column.title}">
+					<Input :maxlength="50" placeholder="${column.title}" class="search-input" v-model="searchParams.${column.humpColumnName}"/>
+#end
+				</SearchGroupItem>		
+#end
+			</SearchGroup>
+			<Row class="buttons-group">
+				<Col class="right-btns">
+					<Button @click="entityModel.handlerEdit" v-if="buttonAccess['${moduleName}:${tableSimpleName}:save']" class="add-btn" type="primary"><Icon type="md-add-circle" />&nbsp;新增</Button>
+				</Col>
+			</Row>
+			<VueTablePage
+				ref="tablePages"
+				:columns="columns"
+				:searchParams="searchParams"
+				:defaultSort="{sortKey: 'createDate', sortOrder: 'desc'}"
+				:list="list">
+			</VueTablePage>
+		</Card>
+		<Details v-model="entityModel.modalShow"
+			:entity="entityModel.entity"
+			:isEdit="entityModel.isEdit"
+			@callback="entityModel.callbackEdit">
+		</Details>
+	</div>
+</template>
+<script>
+import OrgCompanySelect from '@/view/sys-manage/tenant/plugin/tenant-select'
+import Details from './detail'
+import DictSelect from '_c/sys/dict/comp/dict-select'
+import { list, del } from './api'
+import { getAccess } from '@/api/open-api/sys/api'
+export default {
+	name: '${tableSimpleName}List',
+	components: {
+		OrgCompanySelect,
+		Details,
+		DictSelect
+	},
+	props: {},
+	data (){
+		return {
+			// 权控
+			buttonAccess: {
+				'${moduleName}:${tableSimpleName}:save': false,
+				'${moduleName}:${tableSimpleName}:delete': false,
+				'${moduleName}:${tableSimpleName}:export':false
+			},
+			// 蒙版
+			tableLoading: false,
+			//显示列
+			columns: [
+#foreach($column in $inventoryListList)
+#if(${column.humpColumnName} == 'companyId')
+				{title: '企业名称',key: 'companyName',tooltip: true},
+#elseif(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+				{title: '${column.title}', key: '${column.humpColumnName}', tooltip: true, align:'center', Width: 100,
+					render: (h, params) => {
+						let value = params.row.${column.humpColumnName} ? params.row.${column.humpColumnName}.substr(0, 10) : null
+						return h('span', value)
+					}
+				},
+#elseif(${column.isComboBox} == true || ${column.isPop} == true)
+#set($column.humpColumnName = $column.humpColumnName.replace('Id', ''))
+				{
+					title: '${column.title}',
+					key: '${column.humpColumnName}Name',
+					tooltip: true
+				}, 
+#else
+				{
+					title: '${column.title}',
+					key: '${column.humpColumnName}',
+					tooltip: true
+				}, 
+#end
+#end
+				{
+					title: '操作',
+					key: 'id',
+					minWidth: 160,
+					render: (h, params) => {
+						let buttons = []
+						// 编辑
+						if (this.buttonAccess['${moduleName}:${tableSimpleName}:save']) {
+							buttons.push(
+								h('Button', {
+									props: {
+										type: 'primary',
+										size: 'small'
+									},
+									style: 'margin-left:5px',
+									on: {
+										click: () => {
+											this.entityModel.handlerEdit(params.row)
+										}
+									}
+								}, '编辑')
+							)
+						}
+						// 查看
+						buttons.push(
+							h('Button', {
+								props: {
+									type: 'default',
+									size: 'small'
+								},
+								style: 'margin-left:5px',
+								on: {
+									click: () => {
+										this.entityModel.handlerEdit(params.row, true)
+									}
+								}
+							}, '查看')
+						)
+						// 删除
+						if (this.buttonAccess['${moduleName}:${tableSimpleName}:delete']) {
+							buttons.push(
+								h('Button', {
+									props: {
+										type: 'error',
+										size: 'small'
+									},
+									style: 'margin-left:5px',
+									on: {
+										click: () => {
+											this.entityModel.handleDelete(params.row.id)
+										}
+									}
+								}, '删除')
+							)
+						}
+						return h('div', buttons)
+					}
+				}
+			],
+			searchParams: {
+#foreach($column in $queryConditionList)
+#if(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+				${column.humpColumnName}Start:'',
+				${column.humpColumnName}End:'',
+#else
+				${column.humpColumnName}:'',
+#end
+#end
+			},
+			entityModel: {
+				modalShow: false,
+				entity: {},
+				isEdit: true,
+				isNew: false,
+				handlerEdit: (row, view) => {
+					if (row) {
+						this.entityModel.entity = Object.assign({}, row)
+					} else {
+						this.entityModel.entity = {}
+						this.entityModel.isNew = false
+					}
+					this.entityModel.modalShow = true
+					if (view) {
+						this.entityModel.isEdit = false
+					}
+				},
+				handleDelete: (id) => {
+					this.$Modal
+						.confirm({
+							title: '信息删除',
+							content: '<p>您确定要删除该笔数据吗?</p>',
+							onOk: () => {
+								del({ id: id }).then(res => {
+									if (res.data.success) {
+										this.$Message
+											.success('删除成功')
+									 	this.handleSearch()
+									 } else {
+									 	this.$Message
+									 		.error(res.data.msg)
+									 }
+								})
+							}
+						})
+				},
+				callbackEdit: (isSearch) => {
+				
+					this.entityModel.modalShow = false
+					// 是否查询
+					if (isSearch) {
+						this.handleSearch(true)
+					}
+					setTimeout(() => {
+						this.entityModel.isEdit = true
+						this.entityModel.entity = null
+					}, 200)
+				}
+			}
+		}
+	},
+	methods: {
+		list,
+		// 重置按钮
+		handleClear () {
+#foreach($column in $queryConditionList)
+#if(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+			this.searchParams.${column.humpColumnName}Start=''
+			this.searchParams.${column.humpColumnName}End=''
+#else
+			this.searchParams.${column.humpColumnName}=''
+#end
+#end
+			this.handleSearch(true)
+		},
+		// 查询方法, 不重置页数
+		handleSearch (resetPage) {
+			this.$refs.tablePages.handleSearch(resetPage)
+		},
+		// 获取权控按钮
+		loadButtonsAccess () {
+			getAccess(this.buttonAccess).then(res => {
+				this.buttonAccess = res.data
+			})
+		},
+	},
+	mounted () {
+		// 初始查询
+		this.handleSearch(true)
+		this.loadButtonsAccess()
+	}
+}
+</script>
+<style lang="less" scoped="scoped">
+</style>

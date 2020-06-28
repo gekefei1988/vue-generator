@@ -1,0 +1,340 @@
+<template>
+	<div>
+	    <Input :maxlength="50" placeholder="请选择..." v-model="objectName" :readonly="readonly">
+	      <Icon type="ios-search" slot="append" @click="clickObject" class="ios-search-icon"/>
+	    </Input>
+	    <Modal
+	      	title="${functionName}"
+	      	:value="modalShow"
+	      	width="900"
+	      	@on-cancel="detailsCancel"
+	      	:mask-closable="false">
+	      	<Card style="height:450px;overflow-y: auto;" :dis-hover="true">
+	        	<div class="search-con search-con-top">
+#foreach($column in $popSelectList)
+#if($velocityCount%3==1)
+		  			<Row>
+#end
+#if(${column.humpColumnName} == 'companyId')
+						<Col v-if="(this.$store.state.user.isSuperAdmin)" class="search-col-title" span="1">
+				        	<span class="search-span">企业名称</span>
+				        </Col>
+				        <Col v-if="(this.$store.state.user.isSuperAdmin)" class="search-col-content" span="1">
+				            <OrgCompanySelect v-model="searchParams.companyId" :isEdit="true"></OrgCompanySelect>
+				        </Col>
+#elseif(${column.isComboBox} == true)
+						<Col class="search-col-title" span="1">
+			            	<span class="search-span">${column.title}</span>
+			          	</Col>
+				        <Col class="search-col-content" span="1">
+				         	<DictSelect v-model="searchParams.${column.humpColumnName}" type="" class="search-input"></DictSelect>
+				        </Col>
+#elseif(${column.isPop} == true)
+						<Col class="search-col-title" span="1">
+					   		<span class="search-span">${column.title}</span>
+					 	</Col>
+					 	<Col class="search-col-content" span="1">
+					 	 	<SingleSelect v-model="searchParams.${column.humpColumnName}" class="search-input"></SingleSelect>
+					 	</Col>
+#elseif(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+						<Col class="search-col-title" span="1">
+				            <span class="search-span">${column.title}</span>
+			          	</Col>
+			          	<Col class="search-col-content" span="1">
+			          	  <DatePicker type="date" v-model="searchParams.${column.humpColumnName}Start" class="search-input" format="yyyy-MM-dd"  placeholder="${column.title}起"></DatePicker>
+			         	</Col>
+			         	<Col class="search-col-title" span="1">
+			            	<span class="search-span">到</span>
+			         	</Col>
+			          	<Col class="search-col-content" span="1">
+			          	   <DatePicker type="date" v-model="searchParams.${column.humpColumnName}End" class="search-input" format="yyyy-MM-dd"  placeholder="${column.title}至"></DatePicker>
+			         	</Col>
+#else
+						<Col class="search-col-title" span="1">
+		            		<span class="search-span">${column.title}</span>
+		          		</Col>
+		          		<Col class="search-col-content" span="1">
+		            		<Input @on-keydown="handleKeyDown" :maxlength="50" placeholder="${column.title}" class="search-input" v-model="searchParams.${column.humpColumnName}"/>
+		          		</Col>
+#end
+#if($velocityCount==$popSelectList.size())
+						<Col class="search-col-content" span="1">
+		              		<Button @click="search" class="search-btn" type="primary"><Icon type="md-search"/>&nbsp;查询</Button>
+		              		<Button @click="handleClear" class="search-btn" type="default"><Icon type="md-refresh"/>&nbsp;重置</Button>
+		            	</Col>
+#end
+#if($velocityCount%3==0 || $velocityCount==$popSelectList.size())
+					</Row>
+#end
+#end
+   				</div>
+		    	<Table ref="selectionTable" border highlight-row stripe size="small" :loading="tableLoading" :columns="columns"
+			      @on-row-click="selectRow"
+			      :data="pageContent.content" @on-sort-change="sortChange">
+			    </Table>
+		    	<div class="search-page">
+			      	<Page
+			        :total="pageContent.total"
+			        :current="pageContent.pageNumber"
+			        :pageSize="pageContent.pageSize"
+			        show-sizer
+			        show-elevator
+			        show-total
+			        size="small"
+			        :page-size-opts="[10, 20, 30, 50, 100]"
+			        @on-change="pageChange"
+			        @on-page-size-change="pageSizeChange" />
+		    	</div>
+   			</Card>
+		  	<div slot="footer">
+			    <Button @click="detailsCancel" type="default">取消</Button>
+			    <Button @click="detailsClear" type="info">清除</Button>
+			    <Button @click="detailsOk" type="primary">确定</Button>
+		  	</div>
+  		</Modal>
+	</div>
+</template>
+<script>
+import { list as getList, get } from './api'
+export default {
+  name: '${tableSimpleName}_singel_select',
+  components: {},
+  props: {
+    readonly: {
+      type: Boolean,
+      default: () => true
+    },
+    objectId: {
+      type: String,
+      default: () => ''
+    },
+    noclick: {
+      type: Boolean,
+      default: () => false
+    }
+  },
+  model: {
+    prop: 'objectId',
+    event: 'returnBack'
+  },
+  data () {
+    return {
+      objectName: '',
+      selectItem: null,
+      columns: [
+#foreach($column in $inventoryListList)
+#if(${column.humpColumnName} == 'companyId')
+		{title: '企业名称',key: 'companyName',tooltip: true},
+#elseif(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+		{title: '${column.title}', key: '${column.humpColumnName}', tooltip: true, Width: 100,
+    		render: (h, params) => {
+            return h('div',   formatDateStr(new Date(params.row.${column.humpColumnName}),'yyyy-MM-dd'))
+         	}
+    	},
+#elseif(${column.isComboBox} == true || ${column.isPop} == true)
+#set($column.humpColumnName = $column.humpColumnName.replace('Id', ''))
+	    {
+		   title: '${column.title}',
+		   key: '${column.humpColumnName}Name',
+		   tooltip: true
+	  	}, 
+#else
+	  	{
+		   title: '${column.title}',
+		   key: '${column.humpColumnName}',
+		   tooltip: true
+	  	}, 
+#end
+#end
+      ],
+      // table 加载蒙版
+      tableLoading: false,
+      pageContent: {
+        content: [],
+        total: 0,
+        pageSize: 10,
+        pageNumber: 1,
+        sortKey: 'updateDate',
+        sortOrder: 'desc'
+      },
+      // 查询条件
+      searchParams: {
+#foreach($column in $popSelectList)
+#if(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+		${column.humpColumnName}Start:'',
+		${column.humpColumnName}End:'',
+#else
+    	${column.humpColumnName}:'',
+#end
+#end
+      },
+      // 显示弹出框
+      modalShow: false
+    }
+  },
+  methods: {
+    // 重置按钮
+    handleClear () {
+#foreach($column in $popSelectList)
+#if(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+		this.searchParams.${column.humpColumnName}Start=''
+		this.searchParams.${column.humpColumnName}End=''
+#else
+		this.searchParams.${column.humpColumnName}=''
+#end
+#end
+		this.search()
+    },
+    // 查询方法, 重新查询
+    search () {
+      let params = this.getSearchParams()
+      params.pageNumber = 1
+      this.tableLoading = true
+      getList(params).then(res => {
+        this.pageContent = res.data
+        this.tableLoading = false
+      })
+    },
+    // 查询方法, 不重置页数
+    handleSearch () {
+      this.tableLoading = true
+      getList(this.getSearchParams()).then(res => {
+        this.pageContent = res.data
+        this.tableLoading = false
+      })
+    },
+    handleKeyDown (event) {
+      if (event.keyCode === 13) {
+        this.search()
+      }
+    },
+    // 获取查询条件
+    getSearchParams () {
+      let params = {
+#foreach($column in $popSelectList)
+#if(${column.humpColumnName} == 'companyId' || ${column.isComboBox} != true)
+#if(${column.dataType} == 'datetime' || ${column.dataType} == 'date')
+	  	${column.humpColumnName}Start:this.searchParams.${column.humpColumnName}Start,
+		${column.humpColumnName}End:this.searchParams.${column.humpColumnName}End,
+#else
+	    ${column.humpColumnName}:this.searchParams.${column.humpColumnName},
+#end	
+#end
+#end
+        pageSize: this.pageContent.pageSize,
+        pageNumber: this.pageContent.pageNumber,
+        sortKey: this.pageContent.sortKey,
+        sortOrder: this.pageContent.sortOrder
+      }      
+#foreach($column in $popSelectList)
+#if(${column.isComboBox} == true && ${column.humpColumnName} != 'companyId')
+	  if (this.searchParams.${column.humpColumnName} !== 'all' && this.searchParams.${column.humpColumnName} != undefined) {
+	  	params.${column.humpColumnName} = this.searchParams.${column.humpColumnName}
+	  }
+#end
+#end
+      return params
+    },
+    pageChange (pageNumber) {
+      this.pageContent.pageNumber = pageNumber
+      this.handleSearch()
+    },
+    pageSizeChange (pageSize) {
+      this.pageContent.pageSize = pageSize
+      this.search()
+    },
+    sortChange (sortParams) {
+      if (sortParams) {
+        this.pageContent.sortKey = sortParams.key
+        this.pageContent.sortOrder = sortParams.order
+      }
+
+      this.handleSearch()
+    },
+    detailsOk () {
+      if (this.selectItem === null) {
+        this.$Message.error({
+          content: '请选择一条记录...',
+          duration: 3
+        })
+      } else {
+        // 处理选中业务逻辑
+        this.objectName = this.selectItem.${popConfirmColumn}
+        this.$emit('returnBack', this.selectItem.id)
+        this.$emit('on-change', this.selectItem)
+        this.closeModal()
+      }
+    },
+    // 清楚内容
+    detailsClear () {
+      this.objectName = ''
+      this.$emit('returnBack', '')
+      this.$emit('on-change', null)
+      this.closeModal()
+    },
+    detailsCancel () {
+      this.closeModal()
+    },
+    closeModal () {
+      this.modalShow = false
+      setTimeout(() => {
+        this.selectItem = null
+      })
+    },
+    clickObject () {
+      if (this.noclick) {
+        return
+      }
+      this.modalShow = true
+      this.handleClear()
+    },
+    // 选中行
+    selectRow (row) {
+      this.selectItem = row
+    }
+  },
+  mounted () {},
+  watch: {
+    objectId (newVal, oldVal) {
+      debugger
+      if (newVal && newVal.length > 0 && !this.objectName) {
+        get({ id: newVal }).then(res => {
+          this.objectName = res.data.${popConfirmColumn}
+        })
+      } else if (!newVal) {
+        this.objectName = ''
+      }
+    }
+  }
+}
+</script>
+
+<style lang="less" scoped>
+.ivu-input-group-append {
+  .ios-search-icon {
+    cursor: pointer;
+  }
+}
+.ios-search-icon:hover {
+  color: #2d8cf0;
+}
+.search-con{
+  padding: 10px 0;
+  .search-col-title {
+    width: 100px;
+    line-height: 30px;
+    text-align: right;
+  }
+  .search-col-content {
+    width: 220px;
+  }
+}
+.search-page{
+  text-align: right;
+  margin-top: 10px;
+}
+.details-btn{
+  margin-right: 10px;
+  text-align: right;
+}
+</style>

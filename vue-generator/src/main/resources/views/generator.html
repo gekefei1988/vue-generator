@@ -1,0 +1,765 @@
+<!DOCTYPE HTML>
+<html style="height:100%;">
+<head>
+<meta charset="utf-8">
+<meta name="renderer" content="webkit|ie-comp|ie-stand">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport"
+	content="width=device-width,initial-scale=1,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+<link rel="stylesheet" type="text/css" href="css/H-ui.min.css" />
+<link rel="stylesheet" type="text/css" href="css/H-ui1.min.css" />
+<link rel="stylesheet" href="css/layui.css" />
+
+<style type="text/css">
+*{ margin: 0px; border: 0px ;padding: 0px;}
+ input[type="checkbox"]{
+   	zoom:150%;
+  }
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+  }
+ 
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+</style>
+<script src="libs/jquery.min.js"></script>
+<script src="libs/layui.js"></script>
+<title>数据库管理</title>
+<style>
+	th{
+	
+		text-align:center !important;
+		font-weight:bold !important;
+	}
+
+	tr{
+		height:50px;
+	}
+	
+	table input[type='text'],table input[type='number']{
+		width:90% !important;
+	}
+	.table-head{padding-right:17px;background-color:#999;color:#000;}
+ 	.table-body{width:100%; height:65%;overflow-y:scroll;}
+ 	.table-head table,.table-body table{width:100%;}
+ 	table {    
+    	border-collapse: collapse;
+        table-layout: fixed;
+    }   
+    td {
+        word-break: break-word;
+    }
+</style>
+   <script type="text/javascript">
+
+			$(function() {	
+				/**
+				*打勾后显示顺序
+				*/
+		   		var queryConditionTickNumber=0;
+		   		var inventoryTickNumber=0;
+		   		var maintainTickNumber=0;
+		   		var popSelectTickNumber=0;
+		   		//小弹窗返回字段
+		   		var popConfirmColumn;
+		   		var html="";
+		        //复选框的点击事件prev
+		        $(document).on('click', '.prev', function () {
+		        	 //debugger;
+		        	var td=$(this).parent().next();
+		        	//alert()
+		        	if(td.index()==8){
+		        		if(this.checked){ 
+		             		queryConditionTickNumber++;
+		            		td.children().removeAttr("disabled"); 
+		            		td.children().val(queryConditionTickNumber)
+		            	}else{
+		            		td.children().attr("disabled","disabled");
+		            		td.children().val("")
+		            	}
+		        	}      //td索引  8
+		        	if(td.index()==10){
+		        		if(this.checked){ 
+		        			inventoryTickNumber++;
+		            		td.children().removeAttr("disabled"); 
+		            		td.children().val(inventoryTickNumber)
+		            	}else{
+		            		td.children().attr("disabled","disabled");
+		            		td.children().val("")
+		            	}
+		        	}      //td索引  10
+		        	if(td.index()==12){
+		        		if(this.checked){ 
+		        			maintainTickNumber++;
+		            		td.children().removeAttr("disabled"); 
+		            		td.children().val(maintainTickNumber)
+		            	}else{
+		            		//maintainTickNumber--;
+		            		td.children().attr("disabled","disabled");
+		            		td.children().val("")
+		            	}
+		        	}      //td索引  12
+		         	if(td.index()==16){
+		        		if(this.checked){ 
+		        			popSelectTickNumber++;
+		            		td.children().removeAttr("disabled"); 
+		            		td.children().val(popSelectTickNumber)
+		            	}else{
+		            		//maintainTickNumber--;
+		            		td.children().attr("disabled","disabled");
+		            		td.children().val("")
+		            	}
+		        	}      //td索引  16
+		         	
+		        })   //复选框点击事件结束
+		        //复选框点击事件
+		        $(document).on('click', '.popClass', function () {
+		        	  if($(this).prop('checked')){
+		                 $(".popClass").removeAttr('checked');
+		                 $(this).prop('checked','true');
+		                 popConfirmColumn= $(this).parent().parent().children().eq(4).html();
+		                
+		             } 
+
+		        	//alert($(this).parent().parent().index())
+		        })    //复选框点击事件结束
+		        /**
+		        *标题失去焦点校验
+		        */
+		        $(document).on('blur', '.titlec', function () {
+		        	//debugger;
+		        	//3个复选框的状态
+		        	var a=$(this).parent().next().next().children().prop("checked");
+		        	var b=$(this).parent().next().next().next().next().children().prop("checked");
+		        	var c=$(this).parent().next().next().next().next().next().next().children().prop("checked");
+		        	var count = 0;
+		        	if(a) count++;
+		        	if(b) count++;
+		        	if(c) count++;
+		        	 if(count >= 1){
+		        		//失去焦点校验是否为空
+		        		var title=$(this).val();
+		        		 if(title==""||title==null){
+		              	   $(this).css("border-color","red");
+		              	   return;
+		                 }else{
+		              	   $(this).css("border-color","#ddd");
+		                  }  
+		        	 }
+		          
+		        })
+							
+				var queryConditionList = new Array();
+				var inventoryList = new Array();
+				var maintainList = new Array();
+				var popSelectList = new Array();
+				var columnList  = new Array();
+			
+
+				var tableName1;
+				/* 校验数据表简称 */
+				   $("#tableSimpleName").blur(function(a){
+                    //获取用户在网页中书写的用户名信息
+                   var tableSimpleName=$("#tableSimpleName").val();
+                	 //声明规则
+                   var reg=/^[a-zA-Z]+$/
+                   //校验
+                   if(tableSimpleName==""||tableSimpleName==null){
+                	   $(this).css("border-color","red");
+                	   return;
+                   }else if(!reg.test(tableSimpleName)){
+                	   alert("只能输入英文，请重新输入")
+                	   return;
+                   }else{
+                	   $(this).css("border-color","#ddd");
+                    }                       
+                   })
+                /*    校验功能名称 */
+                     $("#functionName").blur(function(a){
+                    //获取用户在网页中书写的用户名信息
+                   var functionName=$("#functionName").val();
+                   //声明规则
+                   var reg=/[\u4E00-\u9FA5\uF900-\uFA2D]/
+                   //校验
+                   if(functionName==""||functionName==null){
+                	   $(this).css("border-color","red");
+                	   return;
+                   }else if(!reg.test(functionName)){
+                	  alert("必须包含中文，请重新输入")
+                	  return;
+                    }else{
+                    	 $(this).css("border-color","#ddd");
+                    }                       
+                   })
+                   /* 校验下载路径 */
+                     $("#filePath").blur(function(a){
+                    //获取用户在网页中书写的用户名信息
+                    //debugger;
+                   var filePath=$("#filePath").val();
+                    //声明规则
+                    var reg=/^[a-zA-Z]:(((\\(?! )[^/:*?<>\""|\\]+)+\\?)|(\\)?)\s*$/
+                   
+        
+                   //校验
+                   if(filePath==""||filePath==null){
+                	   $(this).css("border-color","red");
+                	   return;
+                   }else if(!reg.test(filePath)){
+                	 	alert("您输入的文件下载路径有误,请重新输入")  
+                	 	 return;
+                    }else{
+                    	$(this).css("border-color","#ddd");
+                    }                      
+                   })
+				//重置
+				$("#reset").click(function(){
+					window.location.reload()
+				}) 
+				/* 给查询按钮添加单机事件，显示table表格内容 */
+				$("#confirm").click(function() {
+					var tableSchema = $("#tableSchema").val().replace(/(^\s*)|(\s*$)/g, "");
+					var tableName = $("#tableName").val().replace(/(^\s*)|(\s*$)/g, "");
+					if(tableSchema==""||tableName==""){
+						alert("请先输入筛选条件")
+						return;
+					}
+					$.post("structure/structureSel", {
+						tableName: tableName,
+						tableSchema: tableSchema,
+						
+						// tableName: "trace_supplier",
+						// tableSchema: "new_haishen"
+					}, function(data) {
+						if(data.length==0){
+							alert("没有查询到数据")
+						}
+						
+						//console.log(data);
+						//获取tbody对象
+						var tb = $("#tb");
+						//清空原有内容
+						tb.empty();
+						//将数据显示在页面上
+						$.each(data, function(index, element) {
+							html="";
+							if(index==1){
+								tableName1=element['tableName']
+							}
+ 						    var dataType1=element['dataType']
+							 //debugger;
+ 						    html+="<tr>";
+ 						    //列名
+ 						    html+="<td id='columnName' name='columnName' value='' style='text-align: center;'>" + element['columnName'] + "</td>";
+ 						    //注释
+ 						    html+="<td id='columnComment' name='columnComment' value=''  style='text-align: center;'>" + element['columnComment'] + "</td>";
+ 						    //字段类型
+ 						    html+="<td id=='dataType' name='dataType' value=''  style='text-align: center;'>" + element['dataType'] + "</td>";
+							//标题
+							html+="<td  style='text-align: center;'>" +
+							"<input type='text'  class='titlec' value='"+element['columnComment']+"' placeholder='输入标题' id='" + 'title' +
+							index + "' name='title'>" +
+							"</td style='text-align: center;'>";
+							//实体类字段名
+							html+="<td id='humpColumnName' name='humpColumnName' value=''  style='text-align: center;'>" + element['humpColumnName'] + "</td>";
+							//是否为下拉框
+							html+="<td style='text-align: center;'>" + 
+							"<input type='checkbox'  id='" + 'isComboBox' + index + "' name='isComboBox'>" +
+							"</td>";
+							//是否为小弹窗
+							html+="<td style='text-align: center;'>" + 
+							"<input type='checkbox' id='" + 'isPop' + index + "' name='isPop'>" +
+							"</td>";
+							//是否为查询条件
+							html+="<td style='text-align: center;'>" + 
+							"<input type='checkbox' class='prev'  id='" + 'isQueryCondition' + index +
+							"' name='isQueryCondition'>" + 
+							"</td>";
+							//查询条件顺序
+							html+="<td style='text-align: center;'>" +
+							"<input type='number' disabled='disabled'  onkeyup='this.value=this.value.replace(/D/g,0)' class='input-text'  placeholder='' id='" +
+							'queryConditionSequence' + index + "' name='queryConditionSequence' value=''>" +
+							"</td>";
+							//清单列表
+							html+="<td style='text-align: center;'>" + 
+							"<input type='checkbox' class='prev'  id='" + 'isInventoryList' + index +
+							"' name='isInventoryList'>" + 
+							"</td>";
+							//清单列表顺序
+							html+="<td style='text-align: center;'>" +
+							"<input type='number' disabled='disabled'  onkeyup='this.value=this.value.replace(/D/g,0)' class='input-text'  placeholder='' id='" +
+							'inventoryListOrder' + index + "' name='inventoryListOrder' value=''>" +
+							"</td>";
+							//维护
+							html+="<td style='text-align: center;'>" +
+							"<input type='checkbox' class='prev'   id='" + 'isMaintain' + index + "' name='isMaintain'>" +
+							"</td>";
+							//维护列表顺序
+							html+="<td style='text-align: center;'>" +
+							"<input type='number' disabled='disabled' onkeyup='this.value=this.value.replace(/D/g,0)' class='input-text'  placeholder='' id='" + 'maintainOrder' +index + "' name='maintainOrder' value=''>" + 
+							"</td>";
+							//维护页面是否不为空
+							html+="<td style='text-align: center;'>" +
+							"<input type='checkbox' id='" + 'isNotNull' + index + "' name='isNotNull'>" +
+							"</td>";
+							
+ 						    //是否为数字
+							if((dataType1.toLowerCase()=="tinyint".toLowerCase())||(dataType1.toLowerCase()=="smallint".toLowerCase())||(dataType1.toLowerCase()=="mediumint".toLowerCase())||(dataType1.toLowerCase()=="int".toLowerCase())||(dataType1.toLowerCase()=="bigint".toLowerCase())){
+								//alert("1")
+							html+="<td style='text-align: center;'>" + 
+							"<input type='radio' checked  value='1'  id='" + 'isInteger ' + index + "' name='"+'numericType'+index+"'>" +"整数"+"<br/>"+
+							"<input type='radio' value='2' id='" + 'isDouble' + index + "' name='"+'numericType'+index+"'>" +"小数"+
+							"</td>";				
+							}else if((dataType1.toLowerCase()=="float".toLowerCase())||(dataType1.toLowerCase()=="double".toLowerCase())){ 
+								//alert("2")
+								html+="<td style='text-align: center;'>" + 
+								"<input type='radio'  value='1'  id='" + 'isInteger ' + index + "' name='"+'numericType'+index+"'>" +"整数"+"<br/>"+
+								"<input type='radio' checked value='2' id='" + 'isDouble' + index + "' name='"+'numericType'+index+"'>" +"小数"+
+								"</td>";										
+							}else{
+								//alert("3")
+								html+="<td style='text-align: center;'>" + 
+								"<input type='radio' value='1'  id='" + 'isInteger ' + index + "' name='"+'numericType'+index+"'>" +"整数"+"<br/>"+
+								"<input type='radio' value='2' id='" + 'isDouble' + index + "' name='"+'numericType'+index+"'>" +"小数"+
+								"</td>";			
+							}
+							//是否为小弹窗查询条件
+							html+="<td style='text-align: center;'>" +
+							"<input type='checkbox' class='prev'   id='" + 'isPopSelect' + index + "' name='isPopSelect'>" +
+							"</td>";
+							//小弹窗顺序
+							html+="<td  style='text-align: center;'>" +
+							"<input type='number' disabled='disabled' onkeyup='this.value=this.value.replace(/D/g,0)' class='input-text'  placeholder='' id='" + 'popSelectOrder' +index + "' name='popSelectOrder' value=''>" + 
+							"</td>";
+							//是否为小弹窗返回字段
+							html+="<td style='text-align: center;'>" + 
+							"<input type='checkbox' class='popClass'  id='" + 'popConfirmColumn ' + index + "' name='popConfirmColumn'>"+
+							"</td>";
+							html+="</tr>";	
+							tb.append(html);
+						})   	//each结束
+					})    
+				}) //查询按钮结束
+				/* 给提交按钮添加点击事件 */
+				$("#submit").click(function() {
+					   //debugger;
+					 //清空集合内容
+					queryConditionList.length=0;
+					inventoryList.length=0;
+					maintainList.length=0;
+					popSelectList.length=0;
+					columnList.length=0; 
+					var data={}
+					var humpColumnObject={}
+					//判断如果没有内容不能提交
+					if ($("table tbody tr").length > 0) {
+						$("table tbody tr").each(function(i) {
+							data={}
+							var humpColumnObject={}
+							$(this).children("td").each(function(j) {
+								//判断小弹窗返回字段是否被选中
+								if(j==17){	
+								 	if(!$(this).children().prop("checked")){
+										//debugger;
+										//popConfirmColumn="";
+									}else{
+										 popConfirmColumn= $(this).parent().children().eq(4).html();
+									
+									}
+									//alert($(this).children().prop("checked"))
+								}
+								//存储所有的实体类名字字段到一个集合(排除索引为 9 10 11 12)
+								if(j==4){
+									//$(this).children("td").eq(4).children().text
+									//alert()
+									if(($(this).text()!="createBy")&&($(this).text()!="createDate")&&($(this).text()!="updateDate")&&($(this).text()!="updateBy")&&($(this).text()!="updateDate")){
+										humpColumnObject.humpColumnName=$(this).text();
+										columnList.push(humpColumnObject)
+									}	
+									
+								}    //j=4结束
+								
+								if ($("#isQueryCondition" + i).prop("checked")) {
+									var this1=$(this)
+									dataList(this1,i,j,queryConditionList);
+									
+								} //判断查询条件是否被选中
+								
+								if ($("#isInventoryList" + i).prop("checked")) {
+									var this1=$(this)
+									dataList(this1,i,j,inventoryList);
+										
+								} //判断清单列表是否被选中
+									if ($("#isMaintain" + i).prop("checked")) {
+										var this1=$(this)
+										dataList(this1,i,j,maintainList);
+									} //判断维护是否被选中
+									if ($("#isPopSelect" + i).prop("checked")) {
+										var this1=$(this)
+										dataList(this1,i,j,popSelectList);
+									} //判断小弹窗是否被选中
+							}) //列遍历
+									
+						}) //行遍历
+						//将复选框选中的这条数据存入集合
+						function dataList(this1,i,j,typeList){
+							switch (j) {
+							case 0:
+								data.columnName=this1.text();
+								break;
+							case 1:
+								data.columnComment=this1.text();
+								break;
+							case 2:
+								data.dataType=this1.text();
+								break;
+							case 3:
+								var title = $("#title" + i).val().trim();
+								data.title=title;
+								break;
+							case 4:
+								data.humpColumnName=this1.text();
+								break;
+							case 5:
+								var isComboBox = $("#isComboBox" + i).prop("checked")
+								data.isComboBox=isComboBox;
+								break;
+							case 6:
+								var isPop = $("#isPop" + i).prop("checked")
+								data.isPop=isPop;
+								break;
+						
+							case 7:
+								var isQueryCondition = $("#isQueryCondition" + i).prop("checked")
+								data.isQueryCondition=isQueryCondition;
+								break;
+							case 8:
+								var queryConditionSequence = $("#queryConditionSequence" + i).val();
+								queryConditionSequence=parseInt(queryConditionSequence)
+								data.queryConditionSequence=queryConditionSequence
+								break;
+							case 9:
+								var isInventoryList = $("#isInventoryList" + i).prop("checked")
+								data.isInventoryList=isInventoryList
+								break;
+							case 10:
+								var inventoryListOrder = $("#inventoryListOrder" + i).val();
+								inventoryListOrder=parseInt(inventoryListOrder)
+								data.inventoryListOrder=inventoryListOrder;
+								break;
+							case 11:
+								var isMaintain = $("#isMaintain" + i).prop("checked")
+								data.isMaintain=isMaintain;
+								break;
+							case 12:
+								var maintainOrder = $("#maintainOrder" + i).val();
+								maintainOrder=parseInt(maintainOrder)
+								data.maintainOrder=maintainOrder
+								break;
+							case 13:
+								var isNotNull = $("#isNotNull" + i).prop("checked")
+								data.isNotNull=isNotNull;
+								break;
+							case 14:
+								//debugger;
+								var numericType = $("input[name='"+'numericType'+i+"']:checked").val();
+								if (numericType== undefined){
+									numericType="";
+								}
+								data.numericType=numericType;
+								
+								break;
+							case 15:
+								var isPopSelect = $("#isPopSelect" + i).prop("checked")
+								data.isPopSelect=isPopSelect;
+								break;
+							case 16:
+								var popSelectOrder = $("#popSelectOrder" + i).val();
+								popSelectOrder=parseInt(popSelectOrder)
+								data.popSelectOrder=popSelectOrder
+								break;
+							case 17:
+								/* popConfirmColumn=$(this).parent().parent().children().eq(4).html(); */
+								typeList.push(data)
+								break;
+						} //switch結束
+						} //dataList函数结束
+							//二次校验
+						   $("#tableSimpleName").trigger("blur");
+	                       $("#functionName").trigger("blur");
+	                       $("#filePath").trigger("blur");
+	                      // debugger;
+	                   	var z=$("#tableSimpleName").val();
+						var x=$("#functionName").val();
+						var c=$("#filePath").val();
+						//debugger;
+			
+							
+	                       if( z==""){
+	                    	   return;
+	                       }
+	                       if(x==""){
+	                    	   return;
+	                       }
+	                       if( c==""){
+	                    	   return;
+	                       }
+	                       
+	               	 	// //打印数组
+			 				for (var i in queryConditionList) {
+								//判断title是否为空
+								if(queryConditionList[i].title==""){
+									alert("列名为"+queryConditionList[i].columnName+"的这行标题不能为空");
+									return;
+								}//判断title
+								if(Number.isNaN(queryConditionList[i].queryConditionSequence)){
+									alert("列名为"+queryConditionList[i].columnName+"的查询条件顺序不能为空")
+									return;
+								}  //判断顺序
+	 			
+							}  //查询条件数组 
+							for (var i in inventoryList) {
+								//判断title是否为空
+								if(inventoryList[i].title==""){
+									alert("列名为"+inventoryList[i].columnName+"的这行标题不能为空");
+									return;
+								}//判断title
+								if(Number.isNaN(inventoryList[i].inventoryListOrder)){
+									alert("列名为"+inventoryList[i].columnName+"的清单列表顺序不能为空")
+									return;
+								}//判断顺序
+							
+								
+							} //清单列表数组
+							 //debugger;
+							for (var i in maintainList) {
+								//判断title是否为空
+								if(maintainList[i].title==""){
+									 alert("列名为"+maintainList[i].columnName+"的这行标题不能为空"); 
+									return;
+								}//判断title
+								if(Number.isNaN(maintainList[i].maintainOrder)){
+									alert("列名为"+maintainList[i].columnName+"的维护列表顺序不能为空")
+									return;
+								}//判断顺序
+							}   //维护
+							for (var i in popSelectList ) {
+								//判断title是否为空
+								if(popSelectList[i].title==""){
+									 alert("列名为"+popSelectList[i].columnName+"的这行标题不能为空"); 
+									return;
+								}//判断title
+								if(Number.isNaN(popSelectList[i].popSelectOrder)){
+									alert("列名为"+popSelectList[i].columnName+"的维护列表顺序不能为空")
+									return;
+								}//判断顺序
+							}   //小弹窗
+						//提交请求
+						var tableSimpleName=$("#tableSimpleName").val();
+						var functionName=$("#functionName").val();
+						var filePath=$("#filePath").val();
+						var construction={};
+						
+						construction.queryConditionList=queryConditionList;
+						construction.inventoryList=inventoryList;
+						construction.maintainList=maintainList;
+						construction.popSelectList =popSelectList ;
+						construction.tableName=tableName1;
+						construction.tableSimpleName=tableSimpleName;
+						construction.functionName=functionName;
+						construction.columnList =columnList;
+						construction.filePath =filePath;
+						construction.popConfirmColumn=popConfirmColumn;
+						//alert(construction)
+						console.log(construction)
+						var verify = new Array();
+						var sign=false;
+						verify.push(queryConditionList.length);
+						verify.push(inventoryList.length);
+						verify.push(maintainList.length);
+						verify.push(popSelectList.length);
+						for (var i in verify) {
+							 if(verify[i]>0){
+								 sign=true;
+							 }
+						} //遍历集合长度
+						if(sign){
+							
+							var a = document.createElement('a');
+						  	a.id = 'exportFile';
+						  	a.href = "sys/generator/create?construction=" + encodeURI(JSON.stringify(construction));
+						  	a.target="tempiframe";
+						  	document.body.append(a); 
+						  	a.click();
+						  	document.getElementById('exportFile').remove();
+						  	//alert("下载成功");
+						}else{
+							alert("没有可提交的数据")
+							return;
+						}  //可不可以提交数据
+					} else {
+						alert("请先进行查询")
+						return;
+					} //else结束
+					popConfirmColumn="";
+				}) //提交按钮结束
+			})
+			
+			// 回调
+			function callback(msg){
+				
+				if(msg == '0'){
+					
+					alert("下载成功");
+				}
+				else{
+					
+					alert("下载失败");
+				}
+			}
+		</script>
+</head>
+<body style="overflow-y:hidden;height:100%;">
+	<div class="page-container" style="height:100%;">
+			<div class="text-c">
+				<from method="POST" action="/structureSel">
+				<div>
+					数据库名称：
+					<input type="text" class="input-text" style="width:250px" placeholder="输入数据库名称" id="tableSchema" name="tableSchema">
+					数据表名称：
+					<input type="text" class="input-text" style="width:250px" placeholder="输入数据表名称" id="tableName" name="tableName">
+					<button type="submit" class="btn btn-success radius" id="confirm" name="confirm"><i class="Hui-iconfont"></i> 查询</button>
+					<button  type="button" class="btn btn-success radius" id="reset" name="reset"><i class="Hui-iconfont"></i>
+						重置</button>
+					</div>
+					<div style="margin-top: 20px;text-align:left;">
+				   <font color=red>*</font>&nbsp;  数据表简称：
+					<input  type="text"  class="input-text" style="width:250px" placeholder="输入数据表简称（英文）" id="tableSimpleName" name="tableSimpleName">
+				     <font color=red>*</font>&nbsp;功能名称：
+					<input  type="text" class="input-text" style="width:250px" placeholder="输入功能名称(中文)" id="functionName" name="functionName">
+					<font color=red>*</font>&nbsp;文件下载路径：
+					<input type="text" class="input-text" style="width:250px" placeholder="输入文件下载路径" id="filePath" name="filePath">
+					
+					<button style="float: right"  type="button" class="btn btn-success radius" id="submit" name="submit"><i class="Hui-iconfont"></i>
+				              提交</button>
+				   </div>
+				    
+				</from>
+			</div>
+			<br/>
+			<div class="table-head">
+	   			<table class="table-border table-bordered" style="text-align:center;">
+	   				<colgroup>
+		             	<col style="width:9%;" />
+		             	<col style="width:9%;"/>
+		             	<col style="width:6%;"/>
+		             	<col style="width:10%;"/>
+		             	<col style="width:8%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:5%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:5%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:5%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:6%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:5%;"/>
+		             	<col style=""/>
+		          	</colgroup>
+					<thead>
+						<tr> 
+							<th rowspan="2">列名</th>
+							<th  rowspan="2">注释</th>
+							<th rowspan="2">字段类型</th>
+							<th  rowspan="2">标题</th>
+							<th rowspan="2">实体类字段名称</th>
+							<th  rowspan="2">是否为下拉框</th>
+							<th  rowspan="2">是否为小弹窗</th>
+							<th colspan="4">查询页面设定</th>
+							<th colspan="4">维护页面设定</th>
+							<th colspan="3">小弹窗页面设定</th>
+						</tr>
+						<tr>
+							<th >是否为查询条件</th>
+							<th >查询条件顺序</th>
+							<th >是否为清单列表</th>
+							<th >清单列表顺序</th>
+							<th >是否维护</th>
+							<th >维护列表顺序</th>
+							<th >维护页面是否不为空</th>
+							<th >是否为数字类型</th>
+							<th >是否为小弹窗查询条件</th>
+							<th >小弹窗查询条件顺序</th>
+							<th>是否为小弹窗返回字段</th>
+						</tr>
+					</thead>
+				</table>
+	   		</div>
+	   		<div class="table-body">
+	   			<table class="table-border table-bordered" style="text-align:center;">
+	   				<colgroup>
+		             	<col style="width:9%;" />
+		             	<col style="width:9%;"/>
+		             	<col style="width:6%;"/>
+		             	<col style="width:10%;"/>
+		             	<col style="width:8%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:5%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:5%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:5%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:6%;"/>
+		             	<col style="width:4%;"/>
+		             	<col style="width:5%;"/>
+		             	<col style=""/>
+		          	</colgroup>
+		   			<tbody id="tb">
+	
+					</tbody>
+				</table>
+	   		</div>
+				<!-- <table class="table-border table-bordered" style="text-align:center;">
+					<thead>
+						<tr> 
+							<th style="width:9%;" rowspan="2">列名</th>
+							<th style="width:9%;" rowspan="2">注释</th>
+							<th style="width:6%;" rowspan="2">字段类型</th>
+							<th style="width:10%;" rowspan="2">标题</th>
+							<th style="width:8%;" rowspan="2">实体类字段名称</th>
+							<th style="width:4%;" rowspan="2">是否为下拉框</th>
+							<th style="width:4%;" rowspan="2">是否为小弹窗</th>
+							<th colspan="4">查询页面设定</th>
+							<th colspan="4">维护页面设定</th>
+							<th colspan="3">小弹窗页面设定</th>
+						</tr>
+						<tr>
+							<th style="width:4%;">是否为查询条件</th>
+							<th style="width:5%;">查询条件顺序</th>
+							<th style="width:4%;">是否为清单列表</th>
+							<th style="width:5%;">清单列表顺序</th>
+							<th style="width:4%;">是否维护</th>
+							<th style="width:5%;">维护列表顺序</th>
+							<th style="width:4%;">维护页面是否不为空</th>
+							<th style="width:6%;">是否为数字类型</th>
+							<th style="width:4%;">是否为小弹窗查询条件</th>
+							<th style="width:5%;">小弹窗查询条件顺序</th>
+							<th style="width:4%;">是否为小弹窗返回字段</th>
+						</tr>
+					</thead>
+					<tbody id="tb">
+
+					</tbody>
+				</table> -->
+		<iframe name="tempiframe" style="display:none;"></iframe>
+</body>
+</html>
